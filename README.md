@@ -284,17 +284,14 @@ terraform output test_commands
 
 This matrix shows which instances can reach which destinations, and how.
 
-```
-FROM v  -> TO ->        | Internet | Internet | shared   | shared   | app-a   | app-a    | app-b   | vendor   | S3       |
-                        | Outbound | Inbound  | public   | isolated | private | isolated | private | isolated | (AWS)    |
-------------------------+----------+----------+----------+----------+---------+----------+---------+----------+----------+
-shared-public           | ✅ IGW    | ✅ IGW    |  self    | ✅ local  | ✅ Peer  | ✅ Peer   | ✅ TGW   | ❌       | ✅ IGW    |
-shared-isolated         | ❌       | ❌       | ✅ local  |  self    | ✅ Peer  | ✅ Peer   | ✅ TGW   | ❌       | ✅ GWEP   |
-app-a-private           | ✅ NAT    | ❌       | ✅ Peer   | ✅ Peer   |  self   | ✅ local  | ✅ TGW   | ❌       | ✅ NAT    |
-app-a-isolated          | ❌       | ❌       | ✅ Peer   | ✅ Peer   | ✅ local |  self    | ✅ TGW   | ❌       | ✅ GWEP   |
-app-b-private           | ✅ NAT    | ❌       | ✅ TGW    | ✅ TGW    | ✅ TGW   | ✅ TGW    |  self   | ❌       | ✅ NAT    |
-vendor-isolated         | ❌       | ❌       | ❌       | ❌       | ❌      | ❌       | [PL]    |  self    | ❌       |
-```
+| FROM ↓ · TO → | Internet Outbound | Internet Inbound | shared-public | shared-isolated | app-a-private | app-a-isolated | app-b-private | vendor-isolated | S3 (AWS) |
+|---|---|---|---|---|---|---|---|---|---|
+| **shared-public** | ✅ IGW | ✅ IGW | self | ✅ local | ✅ Peer | ✅ Peer | ✅ TGW | ❌ | ✅ IGW |
+| **shared-isolated** | ❌ | ❌ | ✅ local | self | ✅ Peer | ✅ Peer | ✅ TGW | ❌ | ✅ GWEP |
+| **app-a-private** | ✅ NAT | ❌ | ✅ Peer | ✅ Peer | self | ✅ local | ✅ TGW | ❌ | ✅ NAT |
+| **app-a-isolated** | ❌ | ❌ | ✅ Peer | ✅ Peer | ✅ local | self | ✅ TGW | ❌ | ✅ GWEP |
+| **app-b-private** | ✅ NAT | ❌ | ✅ TGW | ✅ TGW | ✅ TGW | ✅ TGW | self | ❌ | ✅ NAT |
+| **vendor-isolated** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | [PL] | self | ❌ |
 
 **Legend:** IGW = Internet Gateway, NAT = NAT Gateway, TGW = Transit Gateway, Peer = VPC Peering, PL = PrivateLink, GWEP = S3 Gateway Endpoint, local = same VPC
 
