@@ -1,18 +1,18 @@
-# AWS Networking Lab
+# 🌐 AWS Networking Lab
 
 A hands-on Terraform lab that deploys a multi-VPC environment to demonstrate and test 5 core AWS networking services:
 
-- **Transit Gateway (TGW)** — hub-and-spoke connectivity
-- **VPC Peering** — direct VPC-to-VPC links
-- **VPC Endpoints** — private access to AWS services (Gateway + Interface types)
-- **AWS PrivateLink** — service exposure without network merging
-- **Site-to-Site VPN** — simulated Direct Connect for hybrid cloud
+- 🔀 **Transit Gateway (TGW)** — hub-and-spoke connectivity
+- 🔗 **VPC Peering** — direct VPC-to-VPC links
+- 🏷️ **VPC Endpoints** — private access to AWS services (Gateway + Interface types)
+- 🔒 **AWS PrivateLink** — service exposure without network merging
+- 🛡️ **Site-to-Site VPN** — simulated Direct Connect for hybrid cloud
 
 Each service is used where it naturally makes sense — not forced — so you can understand *why* and *when* to use each one.
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
 ```
                           +----------------------------------+
@@ -40,7 +40,7 @@ Each service is used where it naturally makes sense — not forced — so you ca
     Site-to-Site VPN on TGW (simulates Direct Connect) -- optional
 ```
 
-### VPC Roles
+### 📋 VPC Roles
 
 | VPC | CIDR | Role | Why It Exists |
 |-----|------|------|---------------|
@@ -49,7 +49,7 @@ Each service is used where it naturally makes sense — not forced — so you ca
 | **vpc-app-b** | 10.2.0.0/16 | Application Team B | TGW spoke + exposes HTTP service via PrivateLink |
 | **vpc-vendor** | 10.3.0.0/16 | External vendor/partner | Completely isolated — NO TGW, NO peering, only PrivateLink access |
 
-### Why Each Service Is Used Where It Is
+### 💡 Why Each Service Is Used Where It Is
 
 | Service | Where | Why (not just how) | Setup Cost | Data Transfer |
 |---------|-------|--------------------|------------|---------------|
@@ -62,7 +62,7 @@ Each service is used where it naturally makes sense — not forced — so you ca
 
 ---
 
-## Subnet Design: 3 Tiers
+## 🏢 Subnet Design: 3 Tiers
 
 Each VPC (except vendor) has 3 subnet tiers that demonstrate different internet access patterns:
 
@@ -86,7 +86,7 @@ Each VPC (except vendor) has 3 subnet tiers that demonstrate different internet 
 +---------------------------------------------------------------------+
 ```
 
-### How Each Tier Works
+### ⚙️ How Each Tier Works
 
 **Public Subnet** (`0.0.0.0/0 → Internet Gateway`)
 - Instances can have public IPs (auto-assigned or Elastic IP)
@@ -108,7 +108,7 @@ Each VPC (except vendor) has 3 subnet tiers that demonstrate different internet 
 - Use case: databases, internal processing, sensitive workloads
 - If you try `curl ifconfig.me`, it will timeout — there is literally no route to the internet
 
-### Subnet Map
+### 🗺️ Subnet Map
 
 | VPC | Public | Private | Isolated |
 |-----|--------|---------|----------|
@@ -121,7 +121,7 @@ Each VPC (except vendor) has 3 subnet tiers that demonstrate different internet 
 
 ---
 
-## Test Instances
+## 🖥️ Test Instances
 
 | Instance | VPC | Subnet Tier | Public IP | Purpose |
 |----------|-----|-------------|-----------|---------|
@@ -136,7 +136,7 @@ All instances are accessed via **SSM Session Manager** — no SSH keys, no basti
 
 ---
 
-## Prerequisites
+## ✅ Prerequisites
 
 1. **AWS CLI v2** configured with appropriate credentials
 2. **Terraform >= 1.5** installed
@@ -155,7 +155,7 @@ All instances are accessed via **SSM Session Manager** — no SSH keys, no basti
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 The project is split into two Terraform layers with independent state files:
 
@@ -171,7 +171,7 @@ The `compute` layer reads all outputs from `networking` via `terraform_remote_st
 so there is no manual output passing — any new output added to `networking/outputs.tf`
 is automatically available in `compute` as `local.net.<output_name>`.
 
-### Cross-Layer Communication via `terraform_remote_state`
+### 🔄 Cross-Layer Communication via `terraform_remote_state`
 
 Instead of passing dozens of `TF_VAR_*` environment variables between CI jobs, this
 project uses `terraform_remote_state` — a Terraform-native mechanism where one layer
@@ -219,7 +219,7 @@ For this lab (single account, single team, pure AWS provider), `terraform_remote
 is the simplest and most maintainable approach — zero CI boilerplate, zero manual
 variable wiring.
 
-### CI/CD
+### 🚀 CI/CD
 
 GitHub Actions workflows deploy on push to `main` (with manual approval gate via
 the `production` environment) and destroy via `workflow_dispatch`.
@@ -231,9 +231,9 @@ the `production` environment) and destroy via `workflow_dispatch`.
 | `TF_API_TOKEN` | Terraform Cloud token (for setup-terraform) |
 | `TF_STATE_BUCKET` | S3 bucket name for remote state |
 
-## Quick Start
+## ⚡ Quick Start
 
-### Local Development
+### 🛠️ Local Development
 
 ```bash
 cd aws-labs/
@@ -258,7 +258,7 @@ terraform apply -var="state_bucket=YOUR_BUCKET"
 terraform output test_commands
 ```
 
-### Variables
+### 📝 Variables
 
 **networking/**
 
@@ -280,7 +280,7 @@ terraform output test_commands
 
 ---
 
-## Connectivity Matrix
+## 📡 Connectivity Matrix
 
 This matrix shows which instances can reach which destinations, and how.
 
@@ -288,25 +288,30 @@ This matrix shows which instances can reach which destinations, and how.
 FROM v  -> TO ->        | Internet | Internet | shared   | shared   | app-a   | app-a    | app-b   | vendor   | S3       |
                         | Outbound | Inbound  | public   | isolated | private | isolated | private | isolated | (AWS)    |
 ------------------------+----------+----------+----------+----------+---------+----------+---------+----------+----------+
-shared-public           | OK IGW   | OK IGW   |  self    | OK local | OK Peer | OK Peer  | OK TGW  | --       | OK IGW   |
-shared-isolated         | --       | --       | OK local |  self    | OK Peer | OK Peer  | OK TGW  | --       | OK GWEP  |
-app-a-private           | OK NAT   | --       | OK Peer  | OK Peer  |  self   | OK local | OK TGW  | --       | OK NAT   |
-app-a-isolated          | --       | --       | OK Peer  | OK Peer  | OK local|  self    | OK TGW  | --       | OK GWEP  |
-app-b-private           | OK NAT   | --       | OK TGW   | OK TGW   | OK TGW  | OK TGW   |  self   | --       | OK NAT   |
-vendor-isolated         | --       | --       | --       | --       | --      | --       | [PL]    |  self    | --       |
+shared-public           | ✅ IGW    | ✅ IGW    |  self    | ✅ local  | ✅ Peer  | ✅ Peer   | ✅ TGW   | ❌       | ✅ IGW    |
+shared-isolated         | ❌       | ❌       | ✅ local  |  self    | ✅ Peer  | ✅ Peer   | ✅ TGW   | ❌       | ✅ GWEP   |
+app-a-private           | ✅ NAT    | ❌       | ✅ Peer   | ✅ Peer   |  self   | ✅ local  | ✅ TGW   | ❌       | ✅ NAT    |
+app-a-isolated          | ❌       | ❌       | ✅ Peer   | ✅ Peer   | ✅ local |  self    | ✅ TGW   | ❌       | ✅ GWEP   |
+app-b-private           | ✅ NAT    | ❌       | ✅ TGW    | ✅ TGW    | ✅ TGW   | ✅ TGW    |  self   | ❌       | ✅ NAT    |
+vendor-isolated         | ❌       | ❌       | ❌       | ❌       | ❌      | ❌       | [PL]    |  self    | ❌       |
 ```
 
 **Legend:** IGW = Internet Gateway, NAT = NAT Gateway, TGW = Transit Gateway, Peer = VPC Peering, PL = PrivateLink, GWEP = S3 Gateway Endpoint, local = same VPC
 
 ---
 
-## Testing Guide — 16 Scenarios
+## 🧪 Testing Guide — 16 Scenarios
 
 After `terraform apply`, run `terraform output test_commands` for ready-to-paste commands.
 
-### Group A: Internet Connectivity
+### 🌍 Group A: Internet Connectivity
 
 #### A1. Public Subnet → Internet (Outbound)
+
+```
+📤 shared-public (10.0.1.x) ──► IGW (1:1 NAT) ──► 🌍 Internet
+         route: 0.0.0.0/0 → igw
+```
 
 **What it proves:** Public subnets have bidirectional internet via the Internet Gateway.
 
@@ -323,6 +328,10 @@ curl -s ifconfig.me
 
 #### A2. Internet → Public Subnet (Inbound)
 
+```
+🌍 Internet ──► IGW (pub→priv NAT) ──► SG :80 ✅ ──► 📥 shared-public (10.0.1.x)
+```
+
 **What it proves:** Instances with public IPs can receive inbound connections (if the security group allows it).
 
 ```bash
@@ -337,6 +346,12 @@ terraform output shared_public_ip
 **How it works:** Inbound traffic arrives at the IGW, which translates the public IP to the instance's private IP and forwards the packet to the VPC. The security group must allow the inbound port (80 in this case). If the security group doesn't have an inbound rule, the traffic is silently dropped — it doesn't even reach the instance.
 
 #### A3. Private Subnet → Internet (Outbound Only)
+
+```
+📤 app-a-private (10.1.2.x) ──► NAT GW (EIP) ──► IGW ──► 🌍 Internet
+         route: 0.0.0.0/0 → nat-gw
+🌍 Internet ──► NAT GW ──✖ (no inbound mapping) ──► ❌ BLOCKED
+```
 
 **What it proves:** Private subnets can reach the internet outbound (via NAT Gateway), but cannot receive inbound connections.
 
@@ -363,6 +378,12 @@ Inbound connections fail because the NAT Gateway only tracks connections that we
 
 #### A4. Isolated Subnet → Internet (Blocked)
 
+```
+🚫 shared-isolated (10.0.3.x) ──► route table: no 0.0.0.0/0 ──► ❌ DROPPED
+   but cross-VPC works:
+✅ shared-isolated (10.0.3.x) ──► TGW (10.0.0.0/8) ──► app-b-private
+```
+
 **What it proves:** Isolated subnets have zero internet access — there is literally no route.
 
 ```bash
@@ -382,9 +403,14 @@ ping -c 2 <app-b-private-ip>
 
 ---
 
-### Group B: Transit Gateway
+### 🔀 Group B: Transit Gateway
 
 #### B1. Hub → Spoke (shared → app-b)
+
+```
+🔀 shared-public (10.0.1.x) ──► TGW ──► vpc-app-b attachment ──► ✅ app-b-private (10.2.2.x)
+         route: 10.0.0.0/8 → tgw       propagated: 10.2.0.0/16
+```
 
 **What it proves:** TGW enables hub-and-spoke connectivity. The hub (shared) can reach any spoke.
 
@@ -400,6 +426,11 @@ ping -c 3 <app-b-private-ip>
 
 #### B2. Spoke → Hub (app-b → shared)
 
+```
+🔀 app-b-private (10.2.2.x) ──► TGW ──► vpc-shared attachment ──► ✅ shared-isolated (10.0.3.x)
+         route: 10.0.0.0/8 → tgw       propagated: 10.0.0.0/16
+```
+
 **What it proves:** TGW routing is bidirectional.
 
 ```bash
@@ -409,6 +440,12 @@ ping -c 3 <shared-isolated-ip>
 ```
 
 #### B3. Spoke ↔ Spoke (app-a ↔ app-b)
+
+```
+🔀 app-a-private (10.1.2.x) ──► TGW ──► vpc-app-b attachment ──► ✅ app-b-private (10.2.2.x)
+🔀 app-b-private (10.2.2.x) ──► TGW ──► vpc-app-a attachment ──► ✅ app-a-private (10.1.2.x)
+         ⚠️ No direct peering — TGW provides transitive routing
+```
 
 **What it proves:** TGW enables transitive routing — spoke A can reach spoke B through the hub, even though there's no direct connection between them. VPC Peering cannot do this (peering is non-transitive).
 
@@ -426,6 +463,12 @@ ping -c 3 <app-a-private-ip>
 
 #### B4. Cross-Tier via TGW (isolated → remote private)
 
+```
+🔀 app-a-isolated (10.1.3.x) ──► TGW ──► vpc-app-b ──► ✅ app-b-private (10.2.2.x)
+         isolated subnet                    private subnet
+         ⚠️ TGW doesn't care about subnet tier — only VPC-level routing
+```
+
 **What it proves:** TGW routes between VPCs regardless of subnet tier. An isolated subnet instance can reach a private subnet instance in another VPC.
 
 ```bash
@@ -436,9 +479,16 @@ ping -c 3 <app-b-private-ip>
 
 ---
 
-### Group C: VPC Peering
+### 🔗 Group C: VPC Peering
 
 #### C1. Peering Route Priority Over TGW
+
+```
+🔗 app-a → shared:  10.0.0.0/16 → Peering ✅ WINS (longest prefix)
+                     10.0.0.0/8  → TGW     ❌ less specific, ignored
+
+🔀 app-a → app-b:   10.0.0.0/8  → TGW     ✅ only matching route (no peering with app-b)
+```
 
 **What it proves:** When both a VPC Peering route (/16) and a TGW route (/8) match the same destination, the more specific route (longest prefix match) wins. This is how AWS route tables work.
 
@@ -461,6 +511,12 @@ When app-a sends a packet to 10.0.x.x, both routes match. AWS uses **longest pre
 
 #### C2. Peering Bidirectional
 
+```
+🔗 shared-public (10.0.1.x) ◄──── VPC Peering ────► app-a-private (10.1.2.x)
+     route: 10.1.0.0/16 → pcx         route: 10.0.0.0/16 → pcx
+     ⚠️ Both sides need route entries — peering alone isn't enough
+```
+
 **What it proves:** VPC Peering requires route entries on BOTH sides. The peering connection itself is symmetric, but each VPC needs its own route table entries pointing traffic to the peering connection.
 
 ```bash
@@ -473,9 +529,14 @@ ping -c 3 <shared-public-ip>    # Success via peering
 
 ---
 
-### Group D: VPC Endpoints
+### 🏷️ Group D: VPC Endpoints
 
 #### D1. S3 Gateway Endpoint (from Isolated Subnet)
+
+```
+🏷️ shared-isolated (10.0.3.x) ──► route: pl-xxx → vpce ──► S3 (AWS backbone)
+         🚫 no internet          ✅ Gateway Endpoint         💲 FREE
+```
 
 **What it proves:** S3 Gateway Endpoints enable S3 access from subnets with zero internet connectivity. The traffic never leaves the AWS backbone.
 
@@ -495,6 +556,12 @@ You can verify this in the AWS Console: go to VPC → Route Tables → select th
 Gateway Endpoints are **free** — no hourly charge, no data processing charge. That's why they're recommended for S3 and DynamoDB in all VPCs.
 
 #### D2. SSM Interface Endpoint (from Isolated Subnet, Same VPC)
+
+```
+🔌 shared-isolated ──► DNS: ssm.us-east-2.amazonaws.com → 10.0.3.x (private!)
+                        ──► ENI (Interface Endpoint) ──► SSM API (AWS backbone)
+         without endpoint: ssm.us-east-2.amazonaws.com → 52.x.x.x (public) → ❌ no route
+```
 
 **What it proves:** Interface Endpoints create an ENI with a private IP. When Private DNS is enabled, the public service hostname resolves to this private IP instead of the public IP.
 
@@ -522,6 +589,12 @@ This is transparent to applications — they use the same hostname, same SDK, sa
 
 #### D3. Centralized SSM Endpoints via TGW
 
+```
+🔌 app-a-isolated ──► Peering/TGW ──► vpc-shared ──► ENI (10.0.3.x) ──► SSM API
+      ⚠️ no local SSM endpoints        has SSM Interface Endpoints
+      💲 saves: N endpoints × M VPCs → N endpoints × 1 VPC
+```
+
 **What it proves:** You can centralize VPC Endpoints in a shared services VPC and route traffic from other VPCs via TGW, saving the cost of deploying endpoints in every VPC.
 
 ```bash
@@ -539,9 +612,16 @@ aws ssm start-session --target <app-a-isolated-id>
 
 ---
 
-### Group E: PrivateLink
+### 🔒 Group E: PrivateLink
 
 #### E1. PrivateLink Service Consumption
+
+```
+🔒 PRODUCER (vpc-app-b)                          CONSUMER (vpc-vendor)
+   app-b-private:80 ◄── NLB ◄── Endpoint Service ◄── AWS backbone ◄── ENI (10.3.1.x) ◄── vendor-isolated
+                                  vpce-svc-xxx                          vpce-xxx
+   ⚠️ vendor never sees app-b IPs — only the local ENI
+```
 
 **What it proves:** A completely isolated VPC (no TGW, no peering, no internet) can access a specific service in another VPC via PrivateLink.
 
@@ -576,6 +656,15 @@ The ENI acts as a proxy — the vendor sends traffic to the ENI's IP, and AWS in
 
 #### E2. PrivateLink Isolation Proof
 
+```
+🔒 vendor-isolated attempts:
+   → shared (10.0.x.x)    ❌ no TGW, no peering, no route
+   → app-a  (10.1.x.x)    ❌ no TGW, no peering, no route
+   → app-b  (10.2.x.x)    ❌ PrivateLink ≠ network access
+   → internet              ❌ no IGW, no NAT
+   → app-b:80 via PL ENI  ✅ only this works
+```
+
 **What it proves:** PrivateLink provides service-level access, NOT network-level access. The vendor can reach ONLY the exposed service port — nothing else in any VPC.
 
 ```bash
@@ -602,9 +691,18 @@ ping -c 2 -W 2 <app-b-private-ip>
 
 ---
 
-### Group F: VPN / Direct Connect
+### 🛡️ Group F: VPN / Direct Connect
 
 #### F1. VPN Attachment on TGW (Simulated Direct Connect)
+
+```
+🛡️ TGW Attachments:
+   ├── vpc-shared    (type: vpc)     ✅ UP
+   ├── vpc-app-a     (type: vpc)     ✅ UP
+   ├── vpc-app-b     (type: vpc)     ✅ UP
+   └── vpn-connection (type: vpn)    ⚠️ tunnels DOWN (no real remote endpoint)
+       └── in production: replace with aws_dx_gateway → same pattern
+```
 
 > **Note:** This test requires `create_vpn = true` in your variables.
 
@@ -649,7 +747,7 @@ The TGW route table, VPC attachments, and VPC routing all stay the same. Only th
 
 ---
 
-## Cost Breakdown
+## 💰 Cost Breakdown
 
 Default configuration: `create_nat_gateways = true`, `create_vpn = false`.
 
@@ -706,7 +804,7 @@ Prices vary significantly by region. São Paulo (sa-east-1) is typically 20-40% 
 
 ---
 
-## Production Recommendations
+## 🏭 Production Recommendations
 
 This lab is designed for learning. Here's what you'd change for production:
 
@@ -751,7 +849,7 @@ This lab is designed for learning. Here's what you'd change for production:
 
 ---
 
-## Cleanup
+## 🧹 Cleanup
 
 ```bash
 # Destroy in reverse order
@@ -770,7 +868,7 @@ If destroy fails on the PrivateLink endpoint, it may be because the NLB is still
 
 ---
 
-## File Structure
+## 📂 File Structure
 
 ```
 aws-labs/
