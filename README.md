@@ -51,14 +51,14 @@ Each service is used where it naturally makes sense — not forced — so you ca
 
 ### Why Each Service Is Used Where It Is
 
-| Service | Where | Why (not just how) |
-|---------|-------|--------------------|
-| **TGW** | shared ↔ app-a ↔ app-b | When you have 3+ VPCs that need any-to-any connectivity, TGW scales linearly (N attachments) instead of exponentially (N×(N-1)/2 peerings). It also supports transitive routing — spoke A can reach spoke B through the hub. |
-| **VPC Peering** | shared ↔ app-a (additionally) | For a critical, latency-sensitive path between two specific VPCs. Peering is free, has lower latency than TGW, and coexists with TGW. The /16 peering route wins over the /8 TGW route via longest prefix match. |
-| **VPC Endpoints (Gateway)** | S3 in all VPCs | Gateway Endpoints for S3 are **free** and route S3 traffic through the AWS backbone instead of the internet. No NAT Gateway needed for S3 access. |
-| **VPC Endpoints (Interface)** | SSM/STS in shared + vendor | Interface Endpoints create an ENI with a private IP. When Private DNS is enabled, `ssm.us-east-2.amazonaws.com` resolves to the private IP instead of the public one. This enables SSM Session Manager to work without any internet access. |
-| **PrivateLink** | app-b → vendor | PrivateLink lets you expose a service to another VPC without any network-level connectivity. The vendor can only reach the service's port (80) — they cannot ping, scan, or access anything else in vpc-app-b. |
-| **VPN** | TGW attachment | Same attachment pattern as Direct Connect. In production, you'd replace the VPN with a DX Gateway associated to the TGW. |
+| Service | Where | Why (not just how) | Setup Cost | Data Transfer |
+|---------|-------|--------------------|------------|---------------|
+| **TGW** | shared ↔ app-a ↔ app-b | When you have 3+ VPCs that need any-to-any connectivity, TGW scales linearly (N attachments) instead of exponentially (N×(N-1)/2 peerings). It also supports transitive routing — spoke A can reach spoke B through the hub. | $0.05/hr per attachment (~$36.50/mo) | $0.02/GB processed |
+| **VPC Peering** | shared ↔ app-a (additionally) | For a critical, latency-sensitive path between two specific VPCs. Peering is free, has lower latency than TGW, and coexists with TGW. The /16 peering route wins over the /8 TGW route via longest prefix match. | **Free** | $0.00/GB same-AZ; $0.01/GB cross-AZ |
+| **VPC Endpoints (Gateway)** | S3 in all VPCs | Gateway Endpoints for S3 are **free** and route S3 traffic through the AWS backbone instead of the internet. No NAT Gateway needed for S3 access. | **Free** | **Free** |
+| **VPC Endpoints (Interface)** | SSM/STS in shared + vendor | Interface Endpoints create an ENI with a private IP. When Private DNS is enabled, `ssm.us-east-2.amazonaws.com` resolves to the private IP instead of the public one. This enables SSM Session Manager to work without any internet access. | $0.01/hr per AZ (~$7.30/mo/AZ) | $0.01/GB |
+| **PrivateLink** | app-b → vendor | PrivateLink lets you expose a service to another VPC without any network-level connectivity. The vendor can only reach the service's port (80) — they cannot ping, scan, or access anything else in vpc-app-b. | NLB $0.0225/hr + Endpoint $0.01/hr per AZ (~$38/mo for 3 AZs) | $0.01/GB + LCU |
+| **VPN** | TGW attachment | Same attachment pattern as Direct Connect. In production, you'd replace the VPN with a DX Gateway associated to the TGW. | $0.05/hr per connection (~$36.50/mo) | $0.09/GB out; free in |
 
 ---
 

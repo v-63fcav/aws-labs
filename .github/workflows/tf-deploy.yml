@@ -1,9 +1,7 @@
 name: Terraform Deploy
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 # Single apply at a time. Shared with tf-destroy.yml so deploy and destroy
 # never run simultaneously on the same branch.
@@ -16,7 +14,6 @@ jobs:
   networking:
     name: Networking — VPCs + TGW + Endpoints
     runs-on: ubuntu-latest
-    environment: production
     permissions:
       contents: read
     defaults:
