@@ -38,7 +38,7 @@ jobs:
       - name: Terraform Init
         run: |
           terraform init \
-            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="bucket=ps-sl-state-bucket-cavi-2" \
             -backend-config="key=aws-labs/networking/terraform.tfstate" \
             -backend-config="region=us-east-2" \
             -backend-config="encrypt=true"
@@ -80,7 +80,7 @@ jobs:
       - name: Terraform Init
         run: |
           terraform init \
-            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="bucket=ps-sl-state-bucket-cavi-2" \
             -backend-config="key=aws-labs/compute/terraform.tfstate" \
             -backend-config="region=us-east-2" \
             -backend-config="encrypt=true"
