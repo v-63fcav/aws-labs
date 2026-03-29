@@ -1,18 +1,18 @@
-# 🌐 AWS Networking Lab
+# 🌐 Laboratório de Networking AWS
 
-A hands-on Terraform lab that deploys a multi-VPC environment to demonstrate and test 5 core AWS networking services:
+Um laboratório prático com Terraform que implanta um ambiente multi-VPC para demonstrar e testar 5 serviços essenciais de networking da AWS:
 
-- 🔀 **Transit Gateway (TGW)** — hub-and-spoke connectivity
-- 🔗 **VPC Peering** — direct VPC-to-VPC links
-- 🏷️ **VPC Endpoints** — private access to AWS services (Gateway + Interface types)
-- 🔒 **AWS PrivateLink** — service exposure without network merging
-- 🛡️ **Site-to-Site VPN** — simulated Direct Connect for hybrid cloud
+- 🔀 **Transit Gateway (TGW)** — conectividade hub-and-spoke
+- 🔗 **VPC Peering** — links diretos VPC-a-VPC
+- 🏷️ **VPC Endpoints** — acesso privado a serviços AWS (tipos Gateway + Interface)
+- 🔒 **AWS PrivateLink** — exposição de serviços sem merge de rede
+- 🛡️ **Site-to-Site VPN** — simulação de Direct Connect para nuvem híbrida
 
-Each service is used where it naturally makes sense — not forced — so you can understand *why* and *when* to use each one.
+Cada serviço é usado onde faz sentido naturalmente — sem forçar — para que você entenda *por que* e *quando* usar cada um.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Arquitetura
 
 ```
                           +----------------------------------+
@@ -40,31 +40,31 @@ Each service is used where it naturally makes sense — not forced — so you ca
     Site-to-Site VPN on TGW (simulates Direct Connect) -- optional
 ```
 
-### 📋 VPC Roles
+### 📋 Papéis das VPCs
 
-| VPC | CIDR | Role | Why It Exists |
-|-----|------|------|---------------|
-| **vpc-shared** | 10.0.0.0/16 | Central shared services | Hub for TGW, hosts centralized VPC Endpoints, directly peered with app-a |
-| **vpc-app-a** | 10.1.0.0/16 | Application Team A | TGW spoke + direct peering with shared (demonstrates route priority) |
-| **vpc-app-b** | 10.2.0.0/16 | Application Team B | TGW spoke + exposes HTTP service via PrivateLink |
-| **vpc-vendor** | 10.3.0.0/16 | External vendor/partner | Completely isolated — NO TGW, NO peering, only PrivateLink access |
+| VPC | CIDR | Papel | Por que existe |
+|-----|------|-------|----------------|
+| **vpc-shared** | 10.0.0.0/16 | Serviços compartilhados centrais | Hub do TGW, hospeda VPC Endpoints centralizados, peering direto com app-a |
+| **vpc-app-a** | 10.1.0.0/16 | Application Team A | Spoke do TGW + peering direto com shared (demonstra prioridade de rotas) |
+| **vpc-app-b** | 10.2.0.0/16 | Application Team B | Spoke do TGW + expõe serviço HTTP via PrivateLink |
+| **vpc-vendor** | 10.3.0.0/16 | Vendor/parceiro externo | Completamente isolada — SEM TGW, SEM peering, apenas acesso via PrivateLink |
 
-### 💡 Why Each Service Is Used Where It Is
+### 💡 Por que cada serviço é usado onde está
 
-| Service | Where | Why (not just how) | Setup Cost | Data Transfer |
-|---------|-------|--------------------|------------|---------------|
-| **TGW** | shared ↔ app-a ↔ app-b | When you have 3+ VPCs that need any-to-any connectivity, TGW scales linearly (N attachments) instead of exponentially (N×(N-1)/2 peerings). It also supports transitive routing — spoke A can reach spoke B through the hub. | $0.05/hr per attachment (~$36.50/mo) | $0.02/GB processed |
-| **VPC Peering** | shared ↔ app-a (additionally) | For a critical, latency-sensitive path between two specific VPCs. Peering is free, has lower latency than TGW, and coexists with TGW. The /16 peering route wins over the /8 TGW route via longest prefix match. | **Free** | $0.00/GB same-AZ; $0.01/GB cross-AZ |
-| **VPC Endpoints (Gateway)** | S3 in all VPCs | Gateway Endpoints for S3 are **free** and route S3 traffic through the AWS backbone instead of the internet. No NAT Gateway needed for S3 access. | **Free** | **Free** |
-| **VPC Endpoints (Interface)** | SSM/STS in shared + vendor | Interface Endpoints create an ENI with a private IP. When Private DNS is enabled, `ssm.us-east-2.amazonaws.com` resolves to the private IP instead of the public one. This enables SSM Session Manager to work without any internet access. | $0.01/hr per AZ (~$7.30/mo/AZ) | $0.01/GB |
-| **PrivateLink** | app-b → vendor | PrivateLink lets you expose a service to another VPC without any network-level connectivity. The vendor can only reach the service's port (80) — they cannot ping, scan, or access anything else in vpc-app-b. | NLB $0.0225/hr + Endpoint $0.01/hr per AZ (~$38/mo for 3 AZs) | $0.01/GB + LCU |
-| **VPN** | TGW attachment | Same attachment pattern as Direct Connect. In production, you'd replace the VPN with a DX Gateway associated to the TGW. | $0.05/hr per connection (~$36.50/mo) | $0.09/GB out; free in |
+| Serviço | Onde | Por que (não apenas como) | Custo de setup | Transferência de dados |
+|---------|------|-----------------------------|----------------|------------------------|
+| **TGW** | shared ↔ app-a ↔ app-b | Quando você tem 3+ VPCs que precisam de conectividade any-to-any, o TGW escala linearmente (N attachments) ao invés de exponencialmente (N×(N-1)/2 peerings). Também suporta roteamento transitivo — spoke A alcança spoke B através do hub. | $0.05/hr por attachment (~$36.50/mês) | $0.02/GB processado |
+| **VPC Peering** | shared ↔ app-a (adicionalmente) | Para um caminho crítico e sensível a latência entre duas VPCs específicas. Peering é gratuito, tem menor latência que o TGW e coexiste com o TGW. A rota /16 do peering vence a rota /8 do TGW via longest prefix match. | **Gratuito** | $0.00/GB mesma-AZ; $0.01/GB cross-AZ |
+| **VPC Endpoints (Gateway)** | S3 em todas as VPCs | Gateway Endpoints para S3 são **gratuitos** e roteiam o tráfego do S3 pelo backbone da AWS ao invés da internet. Não é necessário NAT Gateway para acesso ao S3. | **Gratuito** | **Gratuito** |
+| **VPC Endpoints (Interface)** | SSM/STS em shared + vendor | Interface Endpoints criam uma ENI com IP privado. Quando Private DNS está habilitado, `ssm.us-east-2.amazonaws.com` resolve para o IP privado ao invés do público. Isso permite que o SSM Session Manager funcione sem nenhum acesso à internet. | $0.01/hr por AZ (~$7.30/mês/AZ) | $0.01/GB |
+| **PrivateLink** | app-b → vendor | O PrivateLink permite expor um serviço para outra VPC sem nenhuma conectividade a nível de rede. O vendor só consegue acessar a porta do serviço (80) — não pode fazer ping, scan ou acessar qualquer outra coisa na vpc-app-b. | NLB $0.0225/hr + Endpoint $0.01/hr por AZ (~$38/mês para 3 AZs) | $0.01/GB + LCU |
+| **VPN** | TGW attachment | Mesmo padrão de attachment do Direct Connect. Em produção, você substituiria a VPN por um DX Gateway associado ao TGW. | $0.05/hr por conexão (~$36.50/mês) | $0.09/GB saída; entrada gratuita |
 
 ---
 
-## 🏢 Subnet Design: 3 Tiers
+## 🏢 Design de Subnets: 3 Tiers
 
-Each VPC (except vendor) has 3 subnet tiers that demonstrate different internet access patterns:
+Cada VPC (exceto vendor) tem 3 tiers de subnet que demonstram diferentes padrões de acesso à internet:
 
 ```
 +---------------------------------------------------------------------+
@@ -86,29 +86,29 @@ Each VPC (except vendor) has 3 subnet tiers that demonstrate different internet 
 +---------------------------------------------------------------------+
 ```
 
-### ⚙️ How Each Tier Works
+### ⚙️ Como cada tier funciona
 
 **Public Subnet** (`0.0.0.0/0 → Internet Gateway`)
-- Instances can have public IPs (auto-assigned or Elastic IP)
-- Full bidirectional internet: outbound via IGW, inbound via public IP + security group
-- Use case: load balancers, bastion hosts, NAT Gateways themselves
-- The IGW performs 1:1 NAT between public and private IPs — it doesn't change the packet, just translates the address
+- Instâncias podem ter IPs públicos (auto-assigned ou Elastic IP)
+- Internet bidirecional completa: saída via IGW, entrada via IP público + security group
+- Caso de uso: load balancers, bastion hosts, os próprios NAT Gateways
+- O IGW faz NAT 1:1 entre IPs públicos e privados — não altera o pacote, apenas traduz o endereço
 
 **Private Subnet** (`0.0.0.0/0 → NAT Gateway`)
-- Instances have only private IPs
-- Outbound internet works via NAT Gateway (source IP becomes the NAT GW's Elastic IP)
-- Inbound from internet is impossible — NAT only tracks outbound-initiated connections
-- Use case: application servers that need to download packages, call external APIs, etc.
-- This is the most common subnet tier in production
+- Instâncias têm apenas IPs privados
+- Internet de saída funciona via NAT Gateway (IP de origem vira o Elastic IP do NAT GW)
+- Entrada pela internet é impossível — NAT só rastreia conexões iniciadas de dentro
+- Caso de uso: servidores de aplicação que precisam baixar pacotes, chamar APIs externas, etc.
+- Este é o tier de subnet mais comum em produção
 
-**Isolated Subnet** (no `0.0.0.0/0` route)
-- Zero internet access in either direction
-- Can only reach AWS services via VPC Endpoints
-- Can still reach other VPCs via TGW/Peering (those routes exist)
-- Use case: databases, internal processing, sensitive workloads
-- If you try `curl ifconfig.me`, it will timeout — there is literally no route to the internet
+**Isolated Subnet** (sem rota `0.0.0.0/0`)
+- Zero acesso à internet em qualquer direção
+- Só consegue acessar serviços AWS via VPC Endpoints
+- Ainda consegue alcançar outras VPCs via TGW/Peering (essas rotas existem)
+- Caso de uso: bancos de dados, processamento interno, workloads sensíveis
+- Se você tentar `curl ifconfig.me`, vai dar timeout — literalmente não existe rota para a internet
 
-### 🗺️ Subnet Map
+### 🗺️ Mapa de Subnets
 
 | VPC | Public | Private | Isolated |
 |-----|--------|---------|----------|
@@ -117,73 +117,73 @@ Each VPC (except vendor) has 3 subnet tiers that demonstrate different internet 
 | vpc-app-b (10.2.0.0/16) | 10.2.1.0/24 | 10.2.2.0/24 | 10.2.3.0/24 |
 | vpc-vendor (10.3.0.0/16) | — | — | 10.3.1.0/24 |
 
-> **vpc-vendor** has isolated subnet only — no IGW, no NAT, no internet. It represents an external partner that should have zero network access except via PrivateLink.
+> **vpc-vendor** possui apenas isolated subnet — sem IGW, sem NAT, sem internet. Representa um parceiro externo que deve ter zero acesso à rede exceto via PrivateLink.
 
 ---
 
-## 🖥️ Test Instances
+## 🖥️ Instâncias de Teste
 
-| Instance | VPC | Subnet Tier | Public IP | Purpose |
-|----------|-----|-------------|-----------|---------|
-| `shared-public` | vpc-shared | Public | Yes | IGW inbound+outbound, TGW, peering |
-| `shared-isolated` | vpc-shared | Isolated | No | VPC Endpoints (S3, SSM), zero internet proof |
-| `app-a-private` | vpc-app-a | Private | No | NAT outbound, TGW, peering route priority |
-| `app-a-isolated` | vpc-app-a | Isolated | No | Centralized SSM endpoints via TGW |
-| `app-b-private` | vpc-app-b | Private | No | HTTP server behind NLB (PrivateLink target) |
-| `vendor-isolated` | vpc-vendor | Isolated | No | PrivateLink consumer, full isolation proof |
+| Instância | VPC | Tier da Subnet | IP Público | Finalidade |
+|-----------|-----|----------------|------------|------------|
+| `shared-public` | vpc-shared | Public | Sim | IGW entrada+saída, TGW, peering |
+| `shared-isolated` | vpc-shared | Isolated | Não | VPC Endpoints (S3, SSM), prova de zero internet |
+| `app-a-private` | vpc-app-a | Private | Não | NAT saída, TGW, prioridade de rota peering |
+| `app-a-isolated` | vpc-app-a | Isolated | Não | SSM endpoints centralizados via TGW |
+| `app-b-private` | vpc-app-b | Private | Não | Servidor HTTP atrás do NLB (alvo do PrivateLink) |
+| `vendor-isolated` | vpc-vendor | Isolated | Não | Consumidor PrivateLink, prova de isolamento total |
 
-All instances are accessed via **SSM Session Manager** — no SSH keys, no bastion hosts, no public IPs needed (except shared-public for inbound testing).
+Todas as instâncias são acessadas via **SSM Session Manager** — sem SSH keys, sem bastion hosts, sem IPs públicos necessários (exceto shared-public para testes de entrada).
 
 ---
 
-## ✅ Prerequisites
+## ✅ Pré-requisitos
 
-1. **AWS CLI v2** configured with appropriate credentials
-2. **Terraform >= 1.5** installed
-3. **AWS IAM Permissions** — the deploying user/role needs permissions for:
+1. **AWS CLI v2** configurado com credenciais apropriadas
+2. **Terraform >= 1.5** instalado
+3. **Permissões IAM na AWS** — o usuário/role que faz o deploy precisa de permissões para:
    - VPC, Subnets, Route Tables, Internet Gateways, NAT Gateways
-   - EC2 (instances, security groups, EIPs)
+   - EC2 (instâncias, security groups, EIPs)
    - Transit Gateway
    - VPC Peering
    - VPC Endpoints
    - Elastic Load Balancing (NLB)
    - S3
    - IAM (roles, instance profiles)
-   - SSM (for session manager access)
-   - VPN (if `create_vpn = true`)
-4. **Session Manager Plugin** for AWS CLI — [install guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)
+   - SSM (para acesso via Session Manager)
+   - VPN (se `create_vpn = true`)
+4. **Session Manager Plugin** para AWS CLI — [guia de instalação](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)
 
 ---
 
-## 📁 Project Structure
+## 📁 Estrutura do Projeto
 
-The project is split into two Terraform layers with independent state files:
+O projeto é dividido em duas camadas Terraform com state files independentes:
 
 ```
 networking/    → VPCs, TGW, Peering, Endpoints, PrivateLink, VPN, IAM, S3
 compute/       → EC2 instances, Security Groups, PrivateLink target attachment
 ```
 
-**Deploy order**: networking → compute
-**Destroy order**: compute → networking (reverse)
+**Ordem de deploy**: networking → compute
+**Ordem de destroy**: compute → networking (inversa)
 
-The `compute` layer reads all outputs from `networking` via `terraform_remote_state`,
-so there is no manual output passing — any new output added to `networking/outputs.tf`
-is automatically available in `compute` as `local.net.<output_name>`.
+A camada `compute` lê todos os outputs de `networking` via `terraform_remote_state`,
+então não há passagem manual de outputs — qualquer novo output adicionado em `networking/outputs.tf`
+fica automaticamente disponível em `compute` como `local.net.<output_name>`.
 
-### 🔄 Cross-Layer Communication via `terraform_remote_state`
+### 🔄 Comunicação entre camadas via `terraform_remote_state`
 
-Instead of passing dozens of `TF_VAR_*` environment variables between CI jobs, this
-project uses `terraform_remote_state` — a Terraform-native mechanism where one layer
-reads outputs directly from another layer's state file in S3.
+Ao invés de passar dezenas de variáveis de ambiente `TF_VAR_*` entre jobs de CI, este
+projeto usa `terraform_remote_state` — um mecanismo nativo do Terraform onde uma camada
+lê outputs diretamente do state file de outra camada no S3.
 
-**How it works:**
+**Como funciona:**
 
-1. `networking/outputs.tf` declares outputs (VPC IDs, subnet IDs, etc.)
-2. `terraform apply` in networking writes these outputs to S3 (`aws-labs/networking/terraform.tfstate`)
-3. `compute/remote-state.tf` reads that state file via the `terraform_remote_state` data source
-4. `compute/` code references values as `local.net.<output_name>` (alias for the long data source path)
-5. The only variable the CI needs to pass is `state_bucket` — the S3 bucket name
+1. `networking/outputs.tf` declara outputs (VPC IDs, subnet IDs, etc.)
+2. `terraform apply` no networking grava esses outputs no S3 (`aws-labs/networking/terraform.tfstate`)
+3. `compute/remote-state.tf` lê esse state file via data source `terraform_remote_state`
+4. O código de `compute/` referencia valores como `local.net.<output_name>` (alias para o caminho longo do data source)
+5. A única variável que o CI precisa passar é `state_bucket` — o nome do bucket S3
 
 ```
 networking/outputs.tf          compute/remote-state.tf          compute/ec2.tf
@@ -191,49 +191,49 @@ networking/outputs.tf          compute/remote-state.tf          compute/ec2.tf
   (written to S3 state)          "networking" { bucket = ... }       (used in resources)
 ```
 
-**Is this production-ready?**
+**Isso é production-ready?**
 
-Yes. `terraform_remote_state` is the standard Terraform pattern for multi-layer
-architectures and is widely used in production environments. Key considerations:
+Sim. `terraform_remote_state` é o padrão Terraform para arquiteturas multi-camadas
+e é amplamente usado em ambientes de produção. Considerações importantes:
 
-- **When to use it**: Same team/org owns both layers, same AWS account, state is in
-  a shared backend (S3, GCS, Terraform Cloud). This is the most common case for
-  infrastructure layering (network → compute → apps).
-- **When NOT to use it**: Cross-team boundaries where you don't want to expose the
-  full state file. `terraform_remote_state` grants read access to _all_ outputs in
-  the state, not just the ones you need. For cross-team scenarios, prefer
-  [`terraform_remote_state` with Terraform Cloud workspaces](https://developer.hashicorp.com/terraform/language/state/remote-state-data)
-  (which scopes access) or use SSM Parameter Store / Secrets Manager as an
-  intermediary — the producer writes values, the consumer reads them, and IAM
-  controls who can access what.
-- **Alternatives in production**:
-  - **SSM Parameter Store**: Producer writes `aws_ssm_parameter`, consumer reads via
-    `data.aws_ssm_parameter`. Fine-grained IAM control, works cross-account.
-  - **Terraform Cloud/Enterprise**: Native workspace outputs with RBAC.
-  - **CI job outputs** (what sl-eks uses): Necessary when the Terraform _provider_
-    configuration itself depends on outputs (e.g., Helm provider needs the EKS
-    endpoint). `terraform_remote_state` cannot be used in provider blocks because
-    data sources are resolved after providers are configured.
+- **Quando usar**: Mesmo time/org é dono de ambas as camadas, mesma conta AWS, state está em
+  um backend compartilhado (S3, GCS, Terraform Cloud). Este é o caso mais comum para
+  layering de infraestrutura (network → compute → apps).
+- **Quando NÃO usar**: Fronteiras entre times onde você não quer expor o state file
+  completo. `terraform_remote_state` concede acesso de leitura a _todos_ os outputs do
+  state, não apenas os que você precisa. Para cenários cross-team, prefira
+  [`terraform_remote_state` com Terraform Cloud workspaces](https://developer.hashicorp.com/terraform/language/state/remote-state-data)
+  (que limita o escopo de acesso) ou use SSM Parameter Store / Secrets Manager como
+  intermediário — o produtor grava valores, o consumidor lê, e o IAM controla quem
+  pode acessar o quê.
+- **Alternativas em produção**:
+  - **SSM Parameter Store**: Produtor grava `aws_ssm_parameter`, consumidor lê via
+    `data.aws_ssm_parameter`. Controle IAM granular, funciona cross-account.
+  - **Terraform Cloud/Enterprise**: Outputs nativos de workspace com RBAC.
+  - **CI job outputs** (o que o sl-eks usa): Necessário quando a configuração do _provider_
+    Terraform depende de outputs (ex: Helm provider precisa do endpoint do EKS).
+    `terraform_remote_state` não pode ser usado em blocos de provider porque
+    data sources são resolvidos após os providers serem configurados.
 
-For this lab (single account, single team, pure AWS provider), `terraform_remote_state`
-is the simplest and most maintainable approach — zero CI boilerplate, zero manual
-variable wiring.
+Para este lab (conta única, time único, provider AWS puro), `terraform_remote_state`
+é a abordagem mais simples e manutenível — zero boilerplate de CI, zero wiring manual
+de variáveis.
 
 ### 🚀 CI/CD
 
-GitHub Actions workflows deploy on push to `main` (with manual approval gate via
-the `production` environment) and destroy via `workflow_dispatch`.
+Workflows do GitHub Actions fazem deploy em push para `main` (com gate de aprovação manual via
+environment `production`) e destroy via `workflow_dispatch`.
 
-| Secret | Description |
-|--------|-------------|
-| `AWS_ACCESS_KEY_ID` | AWS credential |
-| `AWS_SECRET_ACCESS_KEY` | AWS credential |
-| `TF_API_TOKEN` | Terraform Cloud token (for setup-terraform) |
-| `TF_STATE_BUCKET` | S3 bucket name for remote state |
+| Secret | Descrição |
+|--------|-----------|
+| `AWS_ACCESS_KEY_ID` | Credencial AWS |
+| `AWS_SECRET_ACCESS_KEY` | Credencial AWS |
+| `TF_API_TOKEN` | Token do Terraform Cloud (para setup-terraform) |
+| `TF_STATE_BUCKET` | Nome do bucket S3 para remote state |
 
-## ⚡ Quick Start
+## ⚡ Início Rápido
 
-### 🛠️ Local Development
+### 🛠️ Desenvolvimento Local
 
 ```bash
 cd aws-labs/
@@ -258,33 +258,33 @@ terraform apply -var="state_bucket=YOUR_BUCKET"
 terraform output test_commands
 ```
 
-### 📝 Variables
+### 📝 Variáveis
 
 **networking/**
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `aws_region` | `us-east-2` | AWS region for all resources |
-| `project_name` | `aws-networking-lab` | Prefix for all resource names |
-| `create_vpn` | `false` | Create VPN connection (adds ~$0.05/hr) |
-| `create_nat_gateways` | `true` | Create NAT Gateways (adds ~$0.135/hr). Set to `false` to save cost. |
+| Variável | Padrão | Descrição |
+|----------|--------|-----------|
+| `aws_region` | `us-east-2` | Região AWS para todos os recursos |
+| `project_name` | `aws-networking-lab` | Prefixo para todos os nomes de recursos |
+| `create_vpn` | `false` | Cria conexão VPN (adiciona ~$0.05/hr) |
+| `create_nat_gateways` | `true` | Cria NAT Gateways (adiciona ~$0.135/hr). Defina como `false` para economizar custos. |
 
 **compute/**
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `aws_region` | `us-east-2` | AWS region for all resources |
-| `project_name` | `aws-networking-lab` | Prefix for all resource names |
-| `instance_type` | `t3.micro` | EC2 instance type |
-| `state_bucket` | — (required) | S3 bucket name where networking state is stored |
+| Variável | Padrão | Descrição |
+|----------|--------|-----------|
+| `aws_region` | `us-east-2` | Região AWS para todos os recursos |
+| `project_name` | `aws-networking-lab` | Prefixo para todos os nomes de recursos |
+| `instance_type` | `t3.micro` | Tipo de instância EC2 |
+| `state_bucket` | — (obrigatório) | Nome do bucket S3 onde o state do networking está armazenado |
 
 ---
 
-## 📡 Connectivity Matrix
+## 📡 Matriz de Conectividade
 
-This matrix shows which instances can reach which destinations, and how.
+Esta matriz mostra quais instâncias conseguem alcançar quais destinos, e como.
 
-| FROM ↓ · TO → | Internet Outbound | Internet Inbound | shared-public | shared-isolated | app-a-private | app-a-isolated | app-b-private | vendor-isolated | S3 (AWS) |
+| DE ↓ · PARA → | Internet Saída | Internet Entrada | shared-public | shared-isolated | app-a-private | app-a-isolated | app-b-private | vendor-isolated | S3 (AWS) |
 |---|---|---|---|---|---|---|---|---|---|
 | **shared-public** | ✅ IGW | ✅ IGW | self | ✅ local | ✅ Peer | ✅ Peer | ✅ TGW | ❌ | ✅ IGW |
 | **shared-isolated** | ❌ | ❌ | ✅ local | self | ✅ Peer | ✅ Peer | ✅ TGW | ❌ | ✅ GWEP |
@@ -293,24 +293,24 @@ This matrix shows which instances can reach which destinations, and how.
 | **app-b-private** | ✅ NAT | ❌ | ✅ TGW | ✅ TGW | ✅ TGW | ✅ TGW | self | ❌ | ✅ NAT |
 | **vendor-isolated** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | [PL] | self | ❌ |
 
-**Legend:** IGW = Internet Gateway, NAT = NAT Gateway, TGW = Transit Gateway, Peer = VPC Peering, PL = PrivateLink, GWEP = S3 Gateway Endpoint, local = same VPC
+**Legenda:** IGW = Internet Gateway, NAT = NAT Gateway, TGW = Transit Gateway, Peer = VPC Peering, PL = PrivateLink, GWEP = S3 Gateway Endpoint, local = mesma VPC
 
 ---
 
-## 🧪 Testing Guide — 16 Scenarios
+## 🧪 Guia de Testes — 16 Cenários
 
-After `terraform apply`, run `terraform output test_commands` for ready-to-paste commands.
+Após `terraform apply`, execute `terraform output test_commands` para comandos prontos para colar.
 
-### 🌍 Group A: Internet Connectivity
+### 🌍 Grupo A: Conectividade com a Internet
 
-#### A1. Public Subnet → Internet (Outbound)
+#### A1. Public Subnet → Internet (Saída)
 
 ```
 📤 shared-public (10.0.1.x) ──► IGW (1:1 NAT) ──► 🌍 Internet
          route: 0.0.0.0/0 → igw
 ```
 
-**What it proves:** Public subnets have bidirectional internet via the Internet Gateway.
+**O que prova:** Public subnets têm internet bidirecional via Internet Gateway.
 
 ```bash
 # Connect to shared-public
@@ -321,15 +321,15 @@ curl -s ifconfig.me
 # Expected: returns the instance's public IP address
 ```
 
-**How it works:** The public subnet's route table has `0.0.0.0/0 → IGW`. The IGW performs a 1:1 NAT: it translates the instance's private IP (10.0.1.x) to its associated public IP for outbound traffic, and reverses the translation for responses. This is stateless — unlike NAT Gateway, the IGW doesn't maintain a connection table.
+**Como funciona:** A route table da public subnet tem `0.0.0.0/0 → IGW`. O IGW faz NAT 1:1: traduz o IP privado da instância (10.0.1.x) para seu IP público associado no tráfego de saída, e reverte a tradução para respostas. Isso é stateless — diferente do NAT Gateway, o IGW não mantém tabela de conexões.
 
-#### A2. Internet → Public Subnet (Inbound)
+#### A2. Internet → Public Subnet (Entrada)
 
 ```
 🌍 Internet ──► IGW (pub→priv NAT) ──► SG :80 ✅ ──► 📥 shared-public (10.0.1.x)
 ```
 
-**What it proves:** Instances with public IPs can receive inbound connections (if the security group allows it).
+**O que prova:** Instâncias com IPs públicos podem receber conexões de entrada (se o security group permitir).
 
 ```bash
 # From your local machine (not the instance):
@@ -340,9 +340,9 @@ curl http://<shared-public-public-ip>
 terraform output shared_public_ip
 ```
 
-**How it works:** Inbound traffic arrives at the IGW, which translates the public IP to the instance's private IP and forwards the packet to the VPC. The security group must allow the inbound port (80 in this case). If the security group doesn't have an inbound rule, the traffic is silently dropped — it doesn't even reach the instance.
+**Como funciona:** O tráfego de entrada chega ao IGW, que traduz o IP público para o IP privado da instância e encaminha o pacote para a VPC. O security group deve permitir a porta de entrada (80 neste caso). Se o security group não tiver uma regra de entrada, o tráfego é silenciosamente descartado — nem chega à instância.
 
-#### A3. Private Subnet → Internet (Outbound Only)
+#### A3. Private Subnet → Internet (Apenas Saída)
 
 ```
 📤 app-a-private (10.1.2.x) ──► NAT GW (EIP) ──► IGW ──► 🌍 Internet
@@ -350,7 +350,7 @@ terraform output shared_public_ip
 🌍 Internet ──► NAT GW ──✖ (no inbound mapping) ──► ❌ BLOCKED
 ```
 
-**What it proves:** Private subnets can reach the internet outbound (via NAT Gateway), but cannot receive inbound connections.
+**O que prova:** Private subnets conseguem alcançar a internet na saída (via NAT Gateway), mas não podem receber conexões de entrada.
 
 ```bash
 # Connect to app-a-private
@@ -364,16 +364,16 @@ curl -s ifconfig.me
 # From your local machine: curl http://<app-a-private-ip> → will NOT work
 ```
 
-**How it works:** The private subnet's route table has `0.0.0.0/0 → NAT Gateway`. The NAT Gateway lives in the public subnet and has its own Elastic IP. When an instance in the private subnet sends traffic to the internet:
-1. Traffic goes to the NAT Gateway (via route table)
-2. NAT Gateway translates: source IP private → NAT GW's public IP
-3. NAT Gateway forwards to the IGW, which sends to the internet
-4. Response comes back to NAT GW's public IP
-5. NAT Gateway translates back and forwards to the instance
+**Como funciona:** A route table da private subnet tem `0.0.0.0/0 → NAT Gateway`. O NAT Gateway fica na public subnet e tem seu próprio Elastic IP. Quando uma instância na private subnet envia tráfego para a internet:
+1. O tráfego vai para o NAT Gateway (via route table)
+2. O NAT Gateway traduz: IP de origem privado → IP público do NAT GW
+3. O NAT Gateway encaminha para o IGW, que envia para a internet
+4. A resposta volta para o IP público do NAT GW
+5. O NAT Gateway traduz de volta e encaminha para a instância
 
-Inbound connections fail because the NAT Gateway only tracks connections that were initiated from the inside. Unsolicited inbound packets have no mapping and are dropped.
+Conexões de entrada falham porque o NAT Gateway só rastreia conexões iniciadas de dentro. Pacotes de entrada não solicitados não têm mapeamento e são descartados.
 
-#### A4. Isolated Subnet → Internet (Blocked)
+#### A4. Isolated Subnet → Internet (Bloqueado)
 
 ```
 🚫 shared-isolated (10.0.3.x) ──► route table: no 0.0.0.0/0 ──► ❌ DROPPED
@@ -381,7 +381,7 @@ Inbound connections fail because the NAT Gateway only tracks connections that we
 ✅ shared-isolated (10.0.3.x) ──► TGW (10.0.0.0/8) ──► app-b-private
 ```
 
-**What it proves:** Isolated subnets have zero internet access — there is literally no route.
+**O que prova:** Isolated subnets têm zero acesso à internet — literalmente não existe rota.
 
 ```bash
 # Connect to shared-isolated
@@ -396,11 +396,11 @@ ping -c 2 <app-b-private-ip>
 # Expected: success via TGW (10.0.0.0/8 → TGW route exists)
 ```
 
-**How it works:** The isolated subnet's route table has NO `0.0.0.0/0` entry. When the instance tries to reach an internet IP, the kernel sends the packet, but the route table has no matching entry, so VPC drops the packet. Cross-VPC traffic still works because the `10.0.0.0/8 → TGW` route exists — TGW routes are independent of internet routes.
+**Como funciona:** A route table da isolated subnet NÃO tem entrada `0.0.0.0/0`. Quando a instância tenta alcançar um IP da internet, o kernel envia o pacote, mas a route table não tem entrada correspondente, então a VPC descarta o pacote. O tráfego cross-VPC ainda funciona porque a rota `10.0.0.0/8 → TGW` existe — rotas do TGW são independentes de rotas de internet.
 
 ---
 
-### 🔀 Group B: Transit Gateway
+### 🔀 Grupo B: Transit Gateway
 
 #### B1. Hub → Spoke (shared → app-b)
 
@@ -409,7 +409,7 @@ ping -c 2 <app-b-private-ip>
          route: 10.0.0.0/8 → tgw       propagated: 10.2.0.0/16
 ```
 
-**What it proves:** TGW enables hub-and-spoke connectivity. The hub (shared) can reach any spoke.
+**O que prova:** O TGW habilita conectividade hub-and-spoke. O hub (shared) alcança qualquer spoke.
 
 ```bash
 # From shared-public:
@@ -417,9 +417,9 @@ ping -c 3 <app-b-private-ip>
 # Expected: success — traffic flows: shared → TGW → app-b
 ```
 
-**How it works:** The shared VPC's route table has `10.0.0.0/8 → TGW`. When shared-public pings app-b's IP (10.2.x.x), the route table matches the /8 route and sends traffic to the TGW. The TGW has an attachment to vpc-app-b and knows (via route propagation) that 10.2.0.0/16 is reachable through that attachment. It forwards the packet to the TGW ENI in vpc-app-b's subnet, which delivers it to the target instance.
+**Como funciona:** A route table da VPC shared tem `10.0.0.0/8 → TGW`. Quando shared-public faz ping para o IP da app-b (10.2.x.x), a route table corresponde à rota /8 e envia o tráfego para o TGW. O TGW tem um attachment para a vpc-app-b e sabe (via propagação de rotas) que 10.2.0.0/16 é alcançável por esse attachment. Ele encaminha o pacote para a ENI do TGW na subnet da vpc-app-b, que entrega à instância de destino.
 
-> **Note:** shared → app-a traffic actually goes via VPC Peering, not TGW, because the /16 peering route is more specific than the /8 TGW route. See test C1.
+> **Nota:** O tráfego shared → app-a na verdade vai via VPC Peering, não TGW, porque a rota /16 do peering é mais específica que a rota /8 do TGW. Veja o teste C1.
 
 #### B2. Spoke → Hub (app-b → shared)
 
@@ -428,7 +428,7 @@ ping -c 3 <app-b-private-ip>
          route: 10.0.0.0/8 → tgw       propagated: 10.0.0.0/16
 ```
 
-**What it proves:** TGW routing is bidirectional.
+**O que prova:** O roteamento do TGW é bidirecional.
 
 ```bash
 # From app-b-private:
@@ -444,7 +444,7 @@ ping -c 3 <shared-isolated-ip>
          ⚠️ No direct peering — TGW provides transitive routing
 ```
 
-**What it proves:** TGW enables transitive routing — spoke A can reach spoke B through the hub, even though there's no direct connection between them. VPC Peering cannot do this (peering is non-transitive).
+**O que prova:** O TGW habilita roteamento transitivo — spoke A alcança spoke B através do hub, mesmo sem conexão direta entre eles. VPC Peering não consegue fazer isso (peering é não-transitivo).
 
 ```bash
 # From app-a-private:
@@ -456,7 +456,7 @@ ping -c 3 <app-a-private-ip>
 # Expected: success — bidirectional
 ```
 
-**How it works:** Both VPCs have `10.0.0.0/8 → TGW` routes. The TGW's default route table has propagated routes for all three attached VPCs. When app-a sends traffic to 10.2.x.x, TGW matches the 10.2.0.0/16 propagated route and forwards to app-b's attachment.
+**Como funciona:** Ambas as VPCs têm rotas `10.0.0.0/8 → TGW`. A route table padrão do TGW tem rotas propagadas para as três VPCs attached. Quando app-a envia tráfego para 10.2.x.x, o TGW corresponde à rota propagada 10.2.0.0/16 e encaminha para o attachment da app-b.
 
 #### B4. Cross-Tier via TGW (isolated → remote private)
 
@@ -466,7 +466,7 @@ ping -c 3 <app-a-private-ip>
          ⚠️ TGW doesn't care about subnet tier — only VPC-level routing
 ```
 
-**What it proves:** TGW routes between VPCs regardless of subnet tier. An isolated subnet instance can reach a private subnet instance in another VPC.
+**O que prova:** O TGW roteia entre VPCs independentemente do tier da subnet. Uma instância em isolated subnet alcança uma instância em private subnet de outra VPC.
 
 ```bash
 # From app-a-isolated:
@@ -476,9 +476,9 @@ ping -c 3 <app-b-private-ip>
 
 ---
 
-### 🔗 Group C: VPC Peering
+### 🔗 Grupo C: VPC Peering
 
-#### C1. Peering Route Priority Over TGW
+#### C1. Prioridade da Rota Peering sobre TGW
 
 ```
 🔗 app-a → shared:  10.0.0.0/16 → Peering ✅ WINS (longest prefix)
@@ -487,7 +487,7 @@ ping -c 3 <app-b-private-ip>
 🔀 app-a → app-b:   10.0.0.0/8  → TGW     ✅ only matching route (no peering with app-b)
 ```
 
-**What it proves:** When both a VPC Peering route (/16) and a TGW route (/8) match the same destination, the more specific route (longest prefix match) wins. This is how AWS route tables work.
+**O que prova:** Quando uma rota de VPC Peering (/16) e uma rota de TGW (/8) correspondem ao mesmo destino, a rota mais específica (longest prefix match) vence. É assim que as route tables da AWS funcionam.
 
 ```bash
 # From app-a-private:
@@ -500,13 +500,13 @@ traceroute -n <app-b-private-ip>
 # Expected: via TGW (app-a has no peering with app-b)
 ```
 
-**How it works:** vpc-app-a's route table has two entries that could match shared's CIDR:
-- `10.0.0.0/8 → TGW` (added by transit-gateway.tf)
-- `10.0.0.0/16 → VPC Peering` (added by vpc-peering.tf)
+**Como funciona:** A route table da vpc-app-a tem duas entradas que podem corresponder ao CIDR da shared:
+- `10.0.0.0/8 → TGW` (adicionada por transit-gateway.tf)
+- `10.0.0.0/16 → VPC Peering` (adicionada por vpc-peering.tf)
 
-When app-a sends a packet to 10.0.x.x, both routes match. AWS uses **longest prefix match**: /16 is more specific than /8, so peering wins. This is the same algorithm routers use worldwide — it's not AWS-specific.
+Quando app-a envia um pacote para 10.0.x.x, ambas as rotas correspondem. A AWS usa **longest prefix match**: /16 é mais específico que /8, então o peering vence. Este é o mesmo algoritmo que roteadores usam mundialmente — não é específico da AWS.
 
-#### C2. Peering Bidirectional
+#### C2. Peering Bidirecional
 
 ```
 🔗 shared-public (10.0.1.x) ◄──── VPC Peering ────► app-a-private (10.1.2.x)
@@ -514,7 +514,7 @@ When app-a sends a packet to 10.0.x.x, both routes match. AWS uses **longest pre
      ⚠️ Both sides need route entries — peering alone isn't enough
 ```
 
-**What it proves:** VPC Peering requires route entries on BOTH sides. The peering connection itself is symmetric, but each VPC needs its own route table entries pointing traffic to the peering connection.
+**O que prova:** VPC Peering requer entradas de rota em AMBOS os lados. A conexão de peering em si é simétrica, mas cada VPC precisa de suas próprias entradas na route table apontando tráfego para a conexão de peering.
 
 ```bash
 # From shared-public → app-a:
@@ -526,16 +526,16 @@ ping -c 3 <shared-public-ip>    # Success via peering
 
 ---
 
-### 🏷️ Group D: VPC Endpoints
+### 🏷️ Grupo D: VPC Endpoints
 
-#### D1. S3 Gateway Endpoint (from Isolated Subnet)
+#### D1. S3 Gateway Endpoint (de Isolated Subnet)
 
 ```
 🏷️ shared-isolated (10.0.3.x) ──► route: pl-xxx → vpce ──► S3 (AWS backbone)
          🚫 no internet          ✅ Gateway Endpoint         💲 FREE
 ```
 
-**What it proves:** S3 Gateway Endpoints enable S3 access from subnets with zero internet connectivity. The traffic never leaves the AWS backbone.
+**O que prova:** S3 Gateway Endpoints permitem acesso ao S3 de subnets com zero conectividade com a internet. O tráfego nunca sai do backbone da AWS.
 
 ```bash
 # From shared-isolated (no internet!):
@@ -546,13 +546,13 @@ aws s3 cp s3://<test-bucket-name>/test.txt -
 # Expected: displays the test file content
 ```
 
-**How it works:** Gateway Endpoints work at the route table level. When you create an S3 Gateway Endpoint, AWS adds a route to your route table: `pl-xxxxxxxx → vpce-xxxxxxxx`. The prefix list (`pl-xxx`) is a managed list of S3's IP ranges. When the instance sends traffic to any S3 IP, the route table matches this prefix list entry and routes traffic directly to the S3 endpoint — bypassing the internet entirely.
+**Como funciona:** Gateway Endpoints funcionam no nível da route table. Quando você cria um S3 Gateway Endpoint, a AWS adiciona uma rota à sua route table: `pl-xxxxxxxx → vpce-xxxxxxxx`. O prefix list (`pl-xxx`) é uma lista gerenciada dos ranges de IP do S3. Quando a instância envia tráfego para qualquer IP do S3, a route table corresponde à entrada do prefix list e roteia o tráfego diretamente para o endpoint do S3 — contornando a internet inteiramente.
 
-You can verify this in the AWS Console: go to VPC → Route Tables → select the isolated subnet's route table. You'll see the prefix list entry.
+Você pode verificar isso no Console AWS: vá em VPC → Route Tables → selecione a route table da isolated subnet. Você verá a entrada do prefix list.
 
-Gateway Endpoints are **free** — no hourly charge, no data processing charge. That's why they're recommended for S3 and DynamoDB in all VPCs.
+Gateway Endpoints são **gratuitos** — sem cobrança por hora, sem cobrança por processamento de dados. Por isso são recomendados para S3 e DynamoDB em todas as VPCs.
 
-#### D2. SSM Interface Endpoint (from Isolated Subnet, Same VPC)
+#### D2. SSM Interface Endpoint (de Isolated Subnet, Mesma VPC)
 
 ```
 🔌 shared-isolated ──► DNS: ssm.us-east-2.amazonaws.com → 10.0.3.x (private!)
@@ -560,7 +560,7 @@ Gateway Endpoints are **free** — no hourly charge, no data processing charge. 
          without endpoint: ssm.us-east-2.amazonaws.com → 52.x.x.x (public) → ❌ no route
 ```
 
-**What it proves:** Interface Endpoints create an ENI with a private IP. When Private DNS is enabled, the public service hostname resolves to this private IP instead of the public IP.
+**O que prova:** Interface Endpoints criam uma ENI com IP privado. Quando Private DNS está habilitado, o hostname público do serviço resolve para este IP privado ao invés do IP público.
 
 ```bash
 # From shared-isolated:
@@ -576,15 +576,15 @@ nslookup ssm.us-east-2.amazonaws.com
 # Interface Endpoints to communicate with the SSM service.
 ```
 
-**How it works:** When you create an Interface Endpoint with `private_dns_enabled = true`, AWS creates:
-1. An ENI in your specified subnet with a private IP from that subnet's CIDR
-2. A private hosted zone that overrides the public DNS name of the service
+**Como funciona:** Quando você cria um Interface Endpoint com `private_dns_enabled = true`, a AWS cria:
+1. Uma ENI na subnet especificada com um IP privado do CIDR dessa subnet
+2. Uma private hosted zone que sobrescreve o nome DNS público do serviço
 
-So when any instance in the VPC resolves `ssm.us-east-2.amazonaws.com`, instead of getting the public IP (e.g., 52.x.x.x), it gets the ENI's private IP (e.g., 10.0.3.x). All HTTPS traffic to the SSM API goes to this local ENI, which AWS forwards to the service internally.
+Então quando qualquer instância na VPC resolve `ssm.us-east-2.amazonaws.com`, ao invés de obter o IP público (ex: 52.x.x.x), obtém o IP privado da ENI (ex: 10.0.3.x). Todo o tráfego HTTPS para a API do SSM vai para essa ENI local, que a AWS encaminha para o serviço internamente.
 
-This is transparent to applications — they use the same hostname, same SDK, same code. The DNS resolution is what changes.
+Isso é transparente para as aplicações — usam o mesmo hostname, mesmo SDK, mesmo código. A resolução DNS é o que muda.
 
-#### D3. Centralized SSM Endpoints via TGW
+#### D3. SSM Endpoints Centralizados via TGW
 
 ```
 🔌 app-a-isolated ──► Peering/TGW ──► vpc-shared ──► ENI (10.0.3.x) ──► SSM API
@@ -592,7 +592,7 @@ This is transparent to applications — they use the same hostname, same SDK, sa
       💲 saves: N endpoints × M VPCs → N endpoints × 1 VPC
 ```
 
-**What it proves:** You can centralize VPC Endpoints in a shared services VPC and route traffic from other VPCs via TGW, saving the cost of deploying endpoints in every VPC.
+**O que prova:** Você pode centralizar VPC Endpoints em uma VPC de serviços compartilhados e rotear tráfego de outras VPCs via TGW, economizando o custo de implantar endpoints em cada VPC.
 
 ```bash
 # From app-a-isolated (has NO local SSM endpoints):
@@ -601,17 +601,17 @@ This is transparent to applications — they use the same hostname, same SDK, sa
 aws ssm start-session --target <app-a-isolated-id>
 ```
 
-**How it works:** app-a-isolated has no SSM Interface Endpoints in its VPC. But it has a route `10.0.0.0/8 → TGW` (via peering in this case, since 10.0.0.0/16 → peering exists). Traffic to the SSM endpoint's private IP (10.0.3.x) routes through the peering/TGW to vpc-shared, where the Interface Endpoint forwards it to the SSM service.
+**Como funciona:** app-a-isolated não tem SSM Interface Endpoints na sua VPC. Mas tem uma rota `10.0.0.0/8 → TGW` (via peering neste caso, já que 10.0.0.0/16 → peering existe). O tráfego para o IP privado do SSM endpoint (10.0.3.x) roteia pelo peering/TGW até a vpc-shared, onde o Interface Endpoint encaminha para o serviço SSM.
 
-> **Important caveat:** This requires DNS resolution to work across VPCs. The private hosted zone created by the Interface Endpoint only applies within vpc-shared by default. For cross-VPC resolution, you need Route 53 Resolver rules or to associate the private hosted zone with the other VPCs.
+> **Ressalva importante:** Isso requer que a resolução DNS funcione entre VPCs. A private hosted zone criada pelo Interface Endpoint só se aplica dentro da vpc-shared por padrão. Para resolução cross-VPC, você precisa de regras do Route 53 Resolver ou associar a private hosted zone com as outras VPCs.
 
-**Production recommendation:** Centralize Interface Endpoints in a shared services VPC and use Route 53 Resolver to forward DNS queries. This can save significant cost — instead of N endpoints × M VPCs, you deploy N endpoints × 1 VPC.
+**Recomendação para produção:** Centralize Interface Endpoints em uma VPC de serviços compartilhados e use Route 53 Resolver para encaminhar consultas DNS. Isso pode economizar custos significativos — ao invés de N endpoints × M VPCs, você implanta N endpoints × 1 VPC.
 
 ---
 
-### 🔒 Group E: PrivateLink
+### 🔒 Grupo E: PrivateLink
 
-#### E1. PrivateLink Service Consumption
+#### E1. Consumo de Serviço via PrivateLink
 
 ```
 🔒 PRODUCER (vpc-app-b)                          CONSUMER (vpc-vendor)
@@ -620,7 +620,7 @@ aws ssm start-session --target <app-a-isolated-id>
    ⚠️ vendor never sees app-b IPs — only the local ENI
 ```
 
-**What it proves:** A completely isolated VPC (no TGW, no peering, no internet) can access a specific service in another VPC via PrivateLink.
+**O que prova:** Uma VPC completamente isolada (sem TGW, sem peering, sem internet) pode acessar um serviço específico em outra VPC via PrivateLink.
 
 ```bash
 # From vendor-isolated:
@@ -632,26 +632,26 @@ curl http://<privatelink-endpoint-dns>
 terraform output privatelink_endpoint_dns
 ```
 
-**How it works:** The PrivateLink architecture has two sides:
+**Como funciona:** A arquitetura PrivateLink tem dois lados:
 
 **Producer (vpc-app-b):**
-1. An NLB (internal) fronts the HTTP server running on app-b-private
-2. An Endpoint Service wraps the NLB, making it available as a PrivateLink service
-3. The Endpoint Service gets a unique service name (e.g., `com.amazonaws.vpce.us-east-2.vpce-svc-xxxxxxxx`)
+1. Um NLB (interno) frontaliza o servidor HTTP rodando na app-b-private
+2. Um Endpoint Service envolve o NLB, tornando-o disponível como serviço PrivateLink
+3. O Endpoint Service recebe um nome de serviço único (ex: `com.amazonaws.vpce.us-east-2.vpce-svc-xxxxxxxx`)
 
 **Consumer (vpc-vendor):**
-1. A VPC Endpoint (Interface type) is created pointing to the Endpoint Service
-2. This creates an ENI in vendor's isolated subnet
-3. The ENI gets a DNS name (e.g., `vpce-xxxxxxxx.vpce-svc-xxxxxxxx.us-east-2.vpce.amazonaws.com`)
+1. Um VPC Endpoint (tipo Interface) é criado apontando para o Endpoint Service
+2. Isso cria uma ENI na isolated subnet do vendor
+3. A ENI recebe um nome DNS (ex: `vpce-xxxxxxxx.vpce-svc-xxxxxxxx.us-east-2.vpce.amazonaws.com`)
 
-**Traffic flow:**
+**Fluxo de tráfego:**
 ```
 vendor-isolated -> ENI (10.3.1.x) -> AWS backbone -> NLB (10.2.2.x) -> app-b-private:80
 ```
 
-The ENI acts as a proxy — the vendor sends traffic to the ENI's IP, and AWS internally routes it to the NLB in vpc-app-b. The vendor never sees vpc-app-b's IP addresses.
+A ENI atua como proxy — o vendor envia tráfego para o IP da ENI, e a AWS roteia internamente para o NLB na vpc-app-b. O vendor nunca vê os endereços IP da vpc-app-b.
 
-#### E2. PrivateLink Isolation Proof
+#### E2. Prova de Isolamento do PrivateLink
 
 ```
 🔒 vendor-isolated attempts:
@@ -662,7 +662,7 @@ The ENI acts as a proxy — the vendor sends traffic to the ENI's IP, and AWS in
    → app-b:80 via PL ENI  ✅ only this works
 ```
 
-**What it proves:** PrivateLink provides service-level access, NOT network-level access. The vendor can reach ONLY the exposed service port — nothing else in any VPC.
+**O que prova:** PrivateLink fornece acesso a nível de serviço, NÃO acesso a nível de rede. O vendor consegue alcançar APENAS a porta do serviço exposto — nada mais em nenhuma VPC.
 
 ```bash
 # From vendor-isolated — all of these should FAIL:
@@ -684,13 +684,13 @@ ping -c 2 -W 2 <app-b-private-ip>
 # Expected: timeout — PrivateLink only exposes the NLB's port, not the VPC network
 ```
 
-**Key insight:** This is what makes PrivateLink different from VPC Peering or TGW. With peering/TGW, the vendor would have network-level access to the entire VPC CIDR — they could scan ports, ping hosts, and potentially reach resources they shouldn't. PrivateLink restricts access to exactly one service on exactly one port.
+**Insight principal:** Isso é o que torna o PrivateLink diferente do VPC Peering ou TGW. Com peering/TGW, o vendor teria acesso a nível de rede ao CIDR inteiro da VPC — poderia fazer scan de portas, ping em hosts e potencialmente alcançar recursos que não deveria. PrivateLink restringe o acesso a exatamente um serviço em exatamente uma porta.
 
 ---
 
-### 🛡️ Group F: VPN / Direct Connect
+### 🛡️ Grupo F: VPN / Direct Connect
 
-#### F1. VPN Attachment on TGW (Simulated Direct Connect)
+#### F1. VPN Attachment no TGW (Simulação de Direct Connect)
 
 ```
 🛡️ TGW Attachments:
@@ -701,9 +701,9 @@ ping -c 2 -W 2 <app-b-private-ip>
        └── in production: replace with aws_dx_gateway → same pattern
 ```
 
-> **Note:** This test requires `create_vpn = true` in your variables.
+> **Nota:** Este teste requer `create_vpn = true` nas suas variáveis.
 
-**What it proves:** VPN and Direct Connect use the same TGW attachment pattern. The resource structure is identical — only the underlying transport differs.
+**O que prova:** VPN e Direct Connect usam o mesmo padrão de TGW attachment. A estrutura dos recursos é idêntica — apenas o transporte subjacente difere.
 
 ```bash
 # View VPN connection details:
@@ -725,7 +725,7 @@ aws ec2 describe-transit-gateway-attachments \
 # Expected: 3x vpc attachments + 1x vpn attachment
 ```
 
-**How Direct Connect would work:** In production, you'd replace the VPN resources with:
+**Como funcionaria o Direct Connect:** Em produção, você substituiria os recursos VPN por:
 
 ```hcl
 # Instead of aws_customer_gateway + aws_vpn_connection:
@@ -740,113 +740,113 @@ resource "aws_dx_gateway_association" "tgw" {
 }
 ```
 
-The TGW route table, VPC attachments, and VPC routing all stay the same. Only the attachment type changes from VPN to DX.
+A route table do TGW, os VPC attachments e o roteamento das VPCs permanecem os mesmos. Apenas o tipo de attachment muda de VPN para DX.
 
 ---
 
-## 💰 Cost Breakdown
+## 💰 Detalhamento de Custos
 
-Default configuration: `create_nat_gateways = true`, `create_vpn = false`.
+Configuração padrão: `create_nat_gateways = true`, `create_vpn = false`.
 
-Prices vary significantly by region. São Paulo (sa-east-1) is typically 20-40% more expensive than US regions due to local taxes and infrastructure costs.
+Os preços variam significativamente por região. São Paulo (sa-east-1) é tipicamente 20-40% mais caro que regiões nos EUA devido a impostos locais e custos de infraestrutura.
 
-### us-east-2 (Ohio) — default region
+### us-east-2 (Ohio) — região padrão
 
-| Resource | Qty | $/hr each | Subtotal/hr | Monthly (730h) | Notes |
-|----------|-----|-----------|-------------|-----------------|-------|
-| EC2 t3.micro | 6 | $0.0104 | $0.062 | $45.55 | 1 instance is free-tier eligible |
-| NAT Gateway | 3 | $0.045 | $0.135 | $98.55 | Set `create_nat_gateways = false` to skip |
-| TGW Attachments | 3 | $0.05 | $0.150 | $109.50 | Charged per attachment per hour |
+| Recurso | Qtd | $/hr cada | Subtotal/hr | Mensal (730h) | Notas |
+|---------|-----|-----------|-------------|---------------|-------|
+| EC2 t3.micro | 6 | $0.0104 | $0.062 | $45.55 | 1 instância elegível ao free-tier |
+| NAT Gateway | 3 | $0.045 | $0.135 | $98.55 | Defina `create_nat_gateways = false` para pular |
+| TGW Attachments | 3 | $0.05 | $0.150 | $109.50 | Cobrado por attachment por hora |
 | Interface VPC Endpoints | 9 | $0.01 | $0.090 | $65.70 | 4 shared + 4 vendor + 1 PrivateLink |
-| NLB | 1 | $0.0225 | $0.023 | $16.43 | Minimum charge even with no traffic |
-| Public IPv4 addresses | 4 | $0.005 | $0.020 | $14.60 | 3 NAT EIPs + 1 EC2 public IP |
-| VPC Peering | 1 | Free | $0.000 | $0 | Only data transfer costs |
-| S3 Gateway Endpoints | 3 | Free | $0.000 | $0 | Always free |
-| VPN (optional) | 1 | $0.05 | $0.050 | $36.50 | Only if `create_vpn = true` |
-| **Total (default)** | | | **~$0.48/hr** | **~$350** | **Without VPN** |
+| NLB | 1 | $0.0225 | $0.023 | $16.43 | Cobrança mínima mesmo sem tráfego |
+| Endereços IPv4 públicos | 4 | $0.005 | $0.020 | $14.60 | 3 NAT EIPs + 1 EC2 IP público |
+| VPC Peering | 1 | Gratuito | $0.000 | $0 | Apenas custos de transferência de dados |
+| S3 Gateway Endpoints | 3 | Gratuito | $0.000 | $0 | Sempre gratuitos |
+| VPN (opcional) | 1 | $0.05 | $0.050 | $36.50 | Apenas se `create_vpn = true` |
+| **Total (padrão)** | | | **~$0.48/hr** | **~$350** | **Sem VPN** |
 
 ### sa-east-1 (São Paulo)
 
-| Resource | Qty | $/hr each | Subtotal/hr | Monthly (730h) | Notes |
-|----------|-----|-----------|-------------|-----------------|-------|
-| EC2 t3.micro | 6 | $0.0152 | $0.091 | $66.58 | ~46% more than us-east-2 |
-| NAT Gateway | 3 | $0.065 | $0.195 | $142.35 | ~44% more than us-east-2 |
-| TGW Attachments | 3 | $0.07 | $0.210 | $153.30 | ~40% more than us-east-2 |
-| Interface VPC Endpoints | 9 | $0.014 | $0.126 | $91.98 | ~40% more than us-east-2 |
-| NLB | 1 | $0.0315 | $0.032 | $22.99 | ~40% more than us-east-2 |
-| Public IPv4 addresses | 4 | $0.005 | $0.020 | $14.60 | Same price globally |
-| VPC Peering | 1 | Free | $0.000 | $0 | Only data transfer costs |
-| S3 Gateway Endpoints | 3 | Free | $0.000 | $0 | Always free |
-| VPN (optional) | 1 | $0.07 | $0.070 | $51.10 | Only if `create_vpn = true` |
-| **Total (default)** | | | **~$0.67/hr** | **~$492** | **Without VPN** |
+| Recurso | Qtd | $/hr cada | Subtotal/hr | Mensal (730h) | Notas |
+|---------|-----|-----------|-------------|---------------|-------|
+| EC2 t3.micro | 6 | $0.0152 | $0.091 | $66.58 | ~46% mais caro que us-east-2 |
+| NAT Gateway | 3 | $0.065 | $0.195 | $142.35 | ~44% mais caro que us-east-2 |
+| TGW Attachments | 3 | $0.07 | $0.210 | $153.30 | ~40% mais caro que us-east-2 |
+| Interface VPC Endpoints | 9 | $0.014 | $0.126 | $91.98 | ~40% mais caro que us-east-2 |
+| NLB | 1 | $0.0315 | $0.032 | $22.99 | ~40% mais caro que us-east-2 |
+| Endereços IPv4 públicos | 4 | $0.005 | $0.020 | $14.60 | Mesmo preço globalmente |
+| VPC Peering | 1 | Gratuito | $0.000 | $0 | Apenas custos de transferência de dados |
+| S3 Gateway Endpoints | 3 | Gratuito | $0.000 | $0 | Sempre gratuitos |
+| VPN (opcional) | 1 | $0.07 | $0.070 | $51.10 | Apenas se `create_vpn = true` |
+| **Total (padrão)** | | | **~$0.67/hr** | **~$492** | **Sem VPN** |
 
-### Cost by scenario
+### Custo por cenário
 
-| Scenario | us-east-2/hr | us-east-2/month | sa-east-1/hr | sa-east-1/month |
-|----------|-------------|-----------------|-------------|-----------------|
-| **Default** (NAT on, VPN off) | ~$0.48 | ~$350 | ~$0.67 | ~$492 |
-| **Minimal** (NAT off, VPN off) | ~$0.33 | ~$237 | ~$0.46 | ~$338 |
-| **Full** (NAT on, VPN on) | ~$0.53 | ~$387 | ~$0.73 | ~$535 |
+| Cenário | us-east-2/hr | us-east-2/mês | sa-east-1/hr | sa-east-1/mês |
+|---------|-------------|---------------|-------------|---------------|
+| **Padrão** (NAT on, VPN off) | ~$0.48 | ~$350 | ~$0.67 | ~$492 |
+| **Mínimo** (NAT off, VPN off) | ~$0.33 | ~$237 | ~$0.46 | ~$338 |
+| **Completo** (NAT on, VPN on) | ~$0.53 | ~$387 | ~$0.73 | ~$535 |
 
-> **Recommendation:** Deploy the lab, run your tests, then `terraform destroy`. A 2-hour session costs ~$0.96 (us-east-2) or ~$1.34 (sa-east-1).
+> **Recomendação:** Implante o lab, execute seus testes e depois `terraform destroy`. Uma sessão de 2 horas custa ~$0.96 (us-east-2) ou ~$1.34 (sa-east-1).
 
-> **Note:** These are hourly fixed costs only. Data transfer (cross-AZ, NAT processing, TGW data processing, internet egress) adds additional charges but is negligible for a lab with minimal traffic. Prices sourced from AWS public pricing pages — check the [AWS Pricing Calculator](https://calculator.aws/) for exact, up-to-date values.
+> **Nota:** Estes são custos fixos por hora apenas. Transferência de dados (cross-AZ, processamento NAT, processamento de dados TGW, egress de internet) adiciona cobranças extras mas é desprezível para um lab com tráfego mínimo. Preços obtidos das páginas de preços públicas da AWS — consulte a [AWS Pricing Calculator](https://calculator.aws/) para valores exatos e atualizados.
 
-### Cost optimization tips
+### Dicas de otimização de custos
 
-- Set `create_nat_gateways = false` to save ~$0.135-0.195/hr (you lose private subnet outbound testing, but public and isolated still work)
-- The lab uses a single AZ to halve costs vs multi-AZ
-- S3 Gateway Endpoints are free — always deploy them
-- **Network infrastructure (TGW + NAT + Endpoints) accounts for ~79% of the total cost**, while EC2 instances are only ~14%
+- Defina `create_nat_gateways = false` para economizar ~$0.135-0.195/hr (você perde os testes de saída da private subnet, mas public e isolated ainda funcionam)
+- O lab usa uma única AZ para reduzir custos pela metade vs multi-AZ
+- S3 Gateway Endpoints são gratuitos — sempre implante-os
+- **Infraestrutura de rede (TGW + NAT + Endpoints) representa ~79% do custo total**, enquanto instâncias EC2 são apenas ~14%
 
 ---
 
-## 🏭 Production Recommendations
+## 🏭 Recomendações para Produção
 
-This lab is designed for learning. Here's what you'd change for production:
+Este lab foi projetado para aprendizado. Aqui está o que você mudaria para produção:
 
 ### Transit Gateway
-- **Separate route tables** per attachment type (shared-services vs spoke vs on-premises). The default "all propagate, all associate" is convenient but gives every VPC full access to every other VPC.
-- **Route table segmentation**: Create a "spoke" route table that only routes to shared-services, not to other spokes. Spoke-to-spoke traffic should route through a firewall in the shared services VPC.
-- **Inter-region peering**: TGW supports peering between TGWs in different regions for multi-region architectures.
-- **AWS Network Firewall**: Deploy at the TGW level for centralized traffic inspection between VPCs.
+- **Route tables separadas** por tipo de attachment (shared-services vs spoke vs on-premises). O padrão "todos propagam, todos associam" é conveniente mas dá a cada VPC acesso total a todas as outras VPCs.
+- **Segmentação de route tables**: Crie uma route table "spoke" que roteia apenas para shared-services, não para outros spokes. O tráfego spoke-para-spoke deve rotear por um firewall na VPC de serviços compartilhados.
+- **Inter-region peering**: O TGW suporta peering entre TGWs em diferentes regiões para arquiteturas multi-região.
+- **AWS Network Firewall**: Implante no nível do TGW para inspeção centralizada de tráfego entre VPCs.
 
 ### VPC Peering
-- VPC Peering is best for 1-3 connections. Beyond that, TGW scales better.
-- Peering is **not transitive** — if A peers with B and B peers with C, A cannot reach C. This is by design.
-- Cross-region peering is supported but adds latency.
-- You cannot peer VPCs with overlapping CIDRs.
+- VPC Peering é melhor para 1-3 conexões. Além disso, o TGW escala melhor.
+- Peering **não é transitivo** — se A faz peering com B e B faz peering com C, A não alcança C. Isso é por design.
+- Cross-region peering é suportado mas adiciona latência.
+- Você não pode fazer peering de VPCs com CIDRs sobrepostos.
 
 ### VPC Endpoints
-- Deploy **Gateway Endpoints** for S3 and DynamoDB in every VPC — they're free.
-- **Centralize Interface Endpoints** in a shared services VPC and use Route 53 Resolver for cross-VPC DNS resolution. This avoids paying for N endpoints × M VPCs.
-- Use **VPC Endpoint Policies** to restrict which resources can be accessed through the endpoint (e.g., only specific S3 buckets).
-- **Multi-AZ**: Deploy Interface Endpoints in all AZs for high availability. Each AZ costs an additional $0.01/hr per endpoint.
+- Implante **Gateway Endpoints** para S3 e DynamoDB em cada VPC — são gratuitos.
+- **Centralize Interface Endpoints** em uma VPC de serviços compartilhados e use Route 53 Resolver para resolução DNS cross-VPC. Isso evita pagar por N endpoints × M VPCs.
+- Use **VPC Endpoint Policies** para restringir quais recursos podem ser acessados pelo endpoint (ex: apenas buckets S3 específicos).
+- **Multi-AZ**: Implante Interface Endpoints em todas as AZs para alta disponibilidade. Cada AZ custa $0.01/hr adicional por endpoint.
 
 ### PrivateLink
-- Enable `acceptance_required = true` to manually approve each consumer connection.
-- Use `allowed_principals` to restrict which AWS accounts can create endpoints to your service.
-- Consider cross-account scenarios — PrivateLink is commonly used between different AWS accounts within the same organization.
-- For SaaS architectures, combine PrivateLink with AWS Marketplace for discovery and billing.
+- Habilite `acceptance_required = true` para aprovar manualmente cada conexão de consumidor.
+- Use `allowed_principals` para restringir quais contas AWS podem criar endpoints para seu serviço.
+- Considere cenários cross-account — PrivateLink é comumente usado entre diferentes contas AWS dentro da mesma organização.
+- Para arquiteturas SaaS, combine PrivateLink com AWS Marketplace para descoberta e faturamento.
 
 ### Direct Connect
-- Use **Dedicated Connections** (1/10/100 Gbps) for consistent high-bandwidth needs.
-- Use **Hosted Connections** (50 Mbps – 10 Gbps) through a partner for smaller needs.
-- Always have a **VPN backup** — DX is a single physical connection and can fail.
-- Use **DX Gateway** for multi-region connectivity through a single DX connection.
-- **LAG (Link Aggregation Group)**: Bundle multiple DX connections for increased bandwidth and redundancy.
-- **MACsec encryption**: Available on 10/100 Gbps dedicated connections for layer-2 encryption.
+- Use **Dedicated Connections** (1/10/100 Gbps) para necessidades consistentes de alta largura de banda.
+- Use **Hosted Connections** (50 Mbps – 10 Gbps) através de um parceiro para necessidades menores.
+- Sempre tenha um **backup VPN** — DX é uma conexão física única e pode falhar.
+- Use **DX Gateway** para conectividade multi-região através de uma única conexão DX.
+- **LAG (Link Aggregation Group)**: Agrupe múltiplas conexões DX para maior largura de banda e redundância.
+- **Criptografia MACsec**: Disponível em conexões dedicated de 10/100 Gbps para criptografia de camada 2.
 
-### General Networking
-- **VPC Flow Logs**: Enable on all VPCs for traffic monitoring and troubleshooting. Send to CloudWatch Logs or S3.
-- **Multi-AZ**: Deploy subnets, NAT Gateways, and endpoints in at least 2 AZs for high availability.
-- **CIDR Planning**: Use non-overlapping CIDRs across all VPCs. Plan for growth — you can add secondary CIDRs, but it's cleaner to plan upfront.
-- **Security Groups vs NACLs**: Use security groups (stateful, instance-level) as your primary firewall. Use NACLs (stateless, subnet-level) only for broad deny rules.
-- **DNS Resolution**: Enable `enable_dns_support` and `enable_dns_hostnames` on all VPCs. Use Route 53 Private Hosted Zones for service discovery.
+### Networking em Geral
+- **VPC Flow Logs**: Habilite em todas as VPCs para monitoramento e troubleshooting de tráfego. Envie para CloudWatch Logs ou S3.
+- **Multi-AZ**: Implante subnets, NAT Gateways e endpoints em pelo menos 2 AZs para alta disponibilidade.
+- **Planejamento de CIDRs**: Use CIDRs não sobrepostos em todas as VPCs. Planeje para crescimento — você pode adicionar CIDRs secundários, mas é mais limpo planejar antecipadamente.
+- **Security Groups vs NACLs**: Use security groups (stateful, nível de instância) como seu firewall principal. Use NACLs (stateless, nível de subnet) apenas para regras amplas de deny.
+- **Resolução DNS**: Habilite `enable_dns_support` e `enable_dns_hostnames` em todas as VPCs. Use Route 53 Private Hosted Zones para service discovery.
 
 ---
 
-## 🧹 Cleanup
+## 🧹 Limpeza
 
 ```bash
 # Destroy in reverse order
@@ -857,15 +857,15 @@ cd ../networking
 terraform destroy
 ```
 
-Or trigger the **Terraform Destroy** workflow via GitHub Actions (`workflow_dispatch`).
+Ou acione o workflow **Terraform Destroy** via GitHub Actions (`workflow_dispatch`).
 
-This removes all resources. Takes ~5-10 minutes (NAT Gateways and TGW attachments are the slowest to delete).
+Isso remove todos os recursos. Leva ~5-10 minutos (NAT Gateways e TGW attachments são os mais lentos para deletar).
 
-If destroy fails on the PrivateLink endpoint, it may be because the NLB is still draining. Wait 1 minute and retry.
+Se o destroy falhar no PrivateLink endpoint, pode ser porque o NLB ainda está drenando. Aguarde 1 minuto e tente novamente.
 
 ---
 
-## 📂 File Structure
+## 📂 Estrutura de Arquivos
 
 ```
 aws-labs/
